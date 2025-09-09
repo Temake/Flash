@@ -1,0 +1,8 @@
+Django
+djangorestframework 
+django-ninja
+channels
+channels-redis
+redis
+celery
+requests
