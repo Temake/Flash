@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import serializers
 from .models import AccountUser
 from django.core.mail import send_mail
+from .tasks import send_password_reset_email, send_welcome_email
 
 
 class Account:
@@ -54,6 +55,12 @@ class Account:
             user = AccountUser.objects.create(**validated_data)
             user.set_password(password)
             user.save()
+            
+            send_welcome_email.delay(
+                user_email=user.email,
+                user_first_name=user.first_name
+            )
+            
             return user
 
 class Auth:
@@ -74,29 +81,31 @@ class PasswordResetSerializer:
                 user= AccountUser.objects.get(email=email)
             except AccountUser.DoesNotExist:
                 raise serializers.ValidationError("Account with this email does not exist")
-            user.generate_otp()
-            send_mail(
-                "Password Reset OTP",
-                f"Your OTP for password reset is {user.otp}",
-                "teminioluwaopemipo@gmail.com",  
-                [user.email],
-                fail_silently=False,
+            
+            otp = user.generate_otp()
+            send_password_reset_email.delay(
+                user_email=user.email,
+                user_first_name=user.first_name,
+                otp=otp
             )
             return attrs
            
     class VerifyOTP(serializers.Serializer):
-        otp = serializers.IntegerField(required=True)
+        email = serializers.EmailField(required=True)
+        otp = serializers.CharField(required=True, max_length=6)
         
         def validate(self, attrs):
-            otp= attrs.get("otp")
+            email = attrs.get("email")
+            otp = attrs.get("otp")
+            
             try:
-                user= AccountUser.objects.get(otp=otp)
+                user = AccountUser.objects.get(email=email)
             except AccountUser.DoesNotExist:
-                raise serializers.ValidationError("Invalid OTP")
-            if user.otp_exp < timezone.now():
-                raise serializers.ValidationError("OTP has expired")
-            user.otp_verified = True
-            user.save()
+                raise serializers.ValidationError("Account with this email does not exist")
+            
+            if not user.verify_otp(otp):
+                raise serializers.ValidationError("Invalid or expired OTP")
+            
             return attrs
 
     class ResetPassword(serializers.Serializer):
@@ -127,8 +136,6 @@ class PasswordResetSerializer:
             password= self.validated_data.get("password")
             user= AccountUser.objects.get(email=email)
             user.set_password(password)
-            user.otp_verified = False
-            user.otp = None
-            user.otp_exp = None
+            user.clear_otp()
             user.save()
             return user

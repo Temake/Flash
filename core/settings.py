@@ -11,7 +11,14 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from django.utils.translation import gettext_lazy as _
+from django.urls import reverse_lazy
 from datetime import timedelta
+import os
+
+from dotenv import load_dotenv
+load_dotenv() # Load environment variables from the parent directory
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,6 +39,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'unfold',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -69,6 +77,36 @@ REST_FRAMEWORK = {
 
 ROOT_URLCONF = 'core.urls'
 
+UNFOLD = {
+    "SITE_TITLE": "Flash",
+    "SITE_DESCRIPTION": "A platform For Real time Communication",
+    "SITE_HEADER": "Flash Admin",
+    "SHOW_HISTORY": True,
+    "SIDEBAR": {
+        "show_search": True,
+        "show-all_applications": True,
+        "navigation": [
+            {
+                "title": _("Users & Session"),
+                "collapsible": True,
+                # "items": [
+                #     {
+                #         "title": _("Users"),
+                #         "icon": "person",
+                #         "link": reverse_lazy("admin:account_account_changelist"),
+                #     },
+                #     {
+                #         "title": _("Sessions"),
+                #         "icon": "fingerprint",
+                #         "link": reverse_lazy("admin:account_usersession_changelist"),
+                #     },
+                # ],
+            },
+        ]
+    }
+}
+
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -96,6 +134,14 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", default="***")
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", True)
+EMAIL_USE_TSL = os.getenv("EMAIL_USE_TSL", False)
+EMAIL_HOST = os.getenv("EMAIL_HOST", default="***")
+EMAIL_PORT = os.getenv("EMAIL_PORT", 465)
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", default="***")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", default="***")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", default="***")
 
 
 # Password validation
@@ -115,7 +161,25 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_TIMEZONE = 'UTC'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
 
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'your-email@gmail.com'
+EMAIL_HOST_PASSWORD = 'your-app-password'
+DEFAULT_FROM_EMAIL = 'your-email@gmail.com'
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/

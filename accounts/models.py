@@ -23,6 +23,27 @@ class AccountUser(AbstractUser):
         self.otp_exp = timezone.now() + timedelta(minutes=5)
         self.otp_verified = False
         self.save()
+        return self.otp
+    
+    def verify_otp(self, otp_code):
+        if not self.otp or not self.otp_exp:
+            return False
+        
+        if timezone.now() > self.otp_exp:
+            return False
+            
+        if self.otp == otp_code:
+            self.otp_verified = True
+            self.save()
+            return True
+        
+        return False
+    
+    def clear_otp(self):
+        self.otp = None
+        self.otp_exp = None
+        self.otp_verified = False
+        self.save()
 
     class Meta:
         verbose_name = ("Account")

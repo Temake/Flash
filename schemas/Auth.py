@@ -13,6 +13,7 @@ class UserDataResponseSerializer(serializers.Serializer):
     data = Account.Retrieve()
 
 create_user_schema = extend_schema(
+    tags=['Authentication'],
     operation_id='create_user',
     summary='Create new user account',
     description='Register a new user with email, password, first name and last name',
@@ -58,6 +59,7 @@ create_user_schema = extend_schema(
 )
 
 request_password_reset_schema = extend_schema(
+    tags=['Authentication'],
     operation_id='request_password_reset',
     summary='Request password reset',
     description='Send OTP to user email for password reset',
@@ -83,6 +85,7 @@ request_password_reset_schema = extend_schema(
 )
 
 verify_otp_schema = extend_schema(
+    tags=['Authentication'],
     operation_id='verify_otp',
     summary='Verify OTP',
     description='Verify the OTP sent to user email',
@@ -108,6 +111,7 @@ verify_otp_schema = extend_schema(
 )
 
 reset_password_schema = extend_schema(
+    tags=['Authentication'],
     operation_id='reset_password',
     summary='Reset password',
     description='Reset user password after OTP verification',
@@ -133,6 +137,7 @@ reset_password_schema = extend_schema(
 )
 
 logout_schema = extend_schema(
+    tags=['Authentication'],
     operation_id='logout',
     summary='Logout user',
     description='Logout the authenticated user',
