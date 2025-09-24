@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 
 # Create your models here.
 from django.db import models
@@ -48,3 +50,8 @@ class AccountUser(AbstractUser):
     class Meta:
         verbose_name = ("Account")
         verbose_name_plural = ("Accounts")
+        
+@receiver(pre_save,sender=AccountUser)
+def create_username(instance, **kwargs):
+    if not instance.username:
+        instance.username = instance.first_name

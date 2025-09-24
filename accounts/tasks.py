@@ -7,7 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-@shared_task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3, 'countdown': 60})
+@shared_task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 2, 'countdown': 60})
 def send_password_reset_email(self, user_email, user_first_name, otp):
     try:
         context = {

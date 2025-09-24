@@ -3,7 +3,9 @@ from rest_framework import serializers
 from .models import AccountUser
 from django.core.mail import send_mail
 from .tasks import send_password_reset_email, send_welcome_email
+import logging
 
+logger = logging.getLogger(__name__)
 
 class Account:
     class Retrieve(serializers.ModelSerializer):
@@ -83,11 +85,15 @@ class PasswordResetSerializer:
                 raise serializers.ValidationError("Account with this email does not exist")
             
             otp = user.generate_otp()
-            send_password_reset_email.delay(
-                user_email=user.email,
-                user_first_name=user.first_name,
-                otp=otp
-            )
+            try:
+                 send_password_reset_email.delay(
+                    user_email=user.email,
+                    user_first_name=user.first_name,
+                    otp=otp
+                )
+            except Exception as e:
+                logger.error(f"Failed to send password reset email to {user.email}: {str(e)}")
+                raise serializers.ValidationError("Failed to send password reset email")           
             return attrs
            
     class VerifyOTP(serializers.Serializer):

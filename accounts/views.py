@@ -33,7 +33,6 @@ class RequestPasswordReset(APIView):
     def post(self,request):
         serializer=PasswordResetSerializer.VerifyEmail(data=request.data)
         if serializer.is_valid(raise_exception=True):
-            serializer.save()
             return response.Response({"message":"OTP sent to your email"},status=status.HTTP_200_OK)
         return response.Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 
