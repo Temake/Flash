@@ -1,16 +1,11 @@
 from django.db import models
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
-
-# Create your models here.
 from django.db import models
 from django.contrib.auth.models import User,AbstractUser
 from django.utils import timezone
 import random
-
 from datetime import timedelta  
-
-
 
 class AccountUser(AbstractUser):
     dob = models.DateField(auto_now_add=True)
