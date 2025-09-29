@@ -1,6 +1,5 @@
 from django.db import models
 from django.utils.deconstruct import deconstructible
-from accounts.models import AccountUser
 import os
 
 # @deconstructible
@@ -21,7 +20,7 @@ import os
         
 class Conversation(models.Model):
     name=models.CharField(max_length=100)
-    members=models.ManyToManyField(AccountUser,related_name='conversations')
+    members=models.ManyToManyField('accounts.Profile',related_name='conversations')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -43,11 +42,11 @@ class Chat(models.Model):
     # image= models.ImageField(upload_to=images,blank=True,null=True)
     conversation= models.ForeignKey(Conversation, on_delete=models.CASCADE,blank=True,null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    sender= models.ForeignKey(AccountUser,on_delete=models.SET_NULL,related_name='chats',null=True)
-    reciever= models.ForeignKey(AccountUser,on_delete=models.CASCADE, related_name="group_chat")
+    sender= models.ForeignKey('accounts.Profile',on_delete=models.SET_NULL,related_name='chats',null=True)
+    reciever= models.ForeignKey('accounts.Profile',on_delete=models.CASCADE, related_name="group_chat")
     
     def __str__(self):
-        return f"{self.message[50]} by {self.sender.username}"
+        return f"{self.message[:50]} by {self.sender.username}"
     
     class Meta:
         permissions =[

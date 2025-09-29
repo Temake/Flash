@@ -1,6 +1,6 @@
 from django.utils import timezone
 from rest_framework import serializers
-from .models import AccountUser
+from .models import AccountUser,Profile
 from django.core.mail import send_mail
 from .tasks import send_password_reset_email, send_welcome_email
 import logging
@@ -145,3 +145,10 @@ class PasswordResetSerializer:
             user.clear_otp()
             user.save()
             return user
+
+class ProfileSerializers(serializers.ModelSerializer):
+    user= serializers.HyperlinkedRelatedField(read_only=True,many=False,view_name="profile-detail")
+    
+    class Meta:
+        model= Profile
+        fields=("id","user","conversations")

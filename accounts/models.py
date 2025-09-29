@@ -46,7 +46,7 @@ class AccountUser(AbstractUser):
         verbose_name = ("Account")
         verbose_name_plural = ("Accounts")
         
-@receiver(pre_save,sender=AccountUser)
-def create_username(instance, **kwargs):
-    if not instance.username:
-        instance.username = instance.first_name
+class Profile(models.Model):
+    user = models.OneToOneField(AccountUser,blank=False,null=False,on_delete=models.CASCADE)
+    # conversations=models.ManyToManyField('chats.conversation',related_name="profile")
+    
