@@ -17,7 +17,7 @@ class ConversationListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         return (Conversation.objects
-                .filter(members=self.request.profile)
+                .filter(members=self.request.user.profile)
                 .prefetch_related('members'))
 
     def create(self, request, *args, **kwargs):

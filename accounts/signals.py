@@ -12,7 +12,9 @@ def create_profile(sender,instance,created,**kwargs):
         
         
 @receiver(pre_save,sender=AccountUser)
-def create_username(instance, **kwargs):
+def create_username(sender,instance, **kwargs):
     if not instance.username:
-        instance.username = f"{instance.first_name}-{instance.last_name}"
+        username = f"{instance.first_name}-{instance.last_name}"
+        instance.username= username
+        
         

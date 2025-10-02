@@ -58,10 +58,10 @@ class Account:
             user.set_password(password)
             user.save()
             
-            send_welcome_email.delay(
-                user_email=user.email,
-                user_first_name=user.first_name
-            )
+            # send_welcome_email.delay(
+            #     user_email=user.email,
+            #     user_first_name=user.first_name
+            # )
             
             return user
 
