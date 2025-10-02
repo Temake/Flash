@@ -3,7 +3,7 @@ from .models import *
 
 
 class ConversationSerializers(serializers.ModelSerializer):
-    members= serializers.ModelSerializer(many = True,read_only=True,view_name="conversation=detail")
+    members= serializers.HyperlinkedRelatedField(many = True,read_only=True,view_name="profile-detail")
     
     class Meta:
         model= Conversation
