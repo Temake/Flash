@@ -85,28 +85,43 @@ UNFOLD = {
     "SHOW_HISTORY": True,
     "SIDEBAR": {
         "show_search": True,
-        "show-all_applications": True,
+        "show_all_applications": True,  # Fixed typo: was "show-all_applications"
         "navigation": [
             {
                 "title": _("Users & Session"),
                 "collapsible": True,
-                # "items": [
-                #     {
-                #         "title": _("Users"),
-                #         "icon": "person",
-                #         "link": reverse_lazy("admin:account_account_changelist"),
-                #     },
-                #     {
-                #         "title": _("Sessions"),
-                #         "icon": "fingerprint",
-                #         "link": reverse_lazy("admin:account_usersession_changelist"),
-                #     },
-                # ],
+                "items": [  # This was missing - causing the KeyError
+                    {
+                        "title": _("Users"),
+                        "icon": "person",
+                        "link": "/admin/accounts/accountuser/",
+                    },
+                    {
+                        "title": _("Profiles"),
+                        "icon": "account_circle",
+                        "link": "/admin/accounts/profile/",
+                    },
+                ],
+            },
+            {
+                "title": _("Chat System"),
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Conversations"),
+                        "icon": "chat",
+                        "link": "/admin/chats/conversation/",
+                    },
+                    {
+                        "title": _("Messages"),
+                        "icon": "message",
+                        "link": "/admin/chats/chat/",
+                    },
+                ],
             },
         ]
     }
 }
-
 
 TEMPLATES = [
     {
