@@ -33,12 +33,12 @@ class UserListSerializer(serializers.ModelSerializer):
    
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserListSerializer()
-    participants = serializers.SerializerMethodField()
+    members = serializers.SerializerMethodField()
     class Meta:
         model = Chat
-        fields = ('id', 'conversation', 'sender', 'message', 'created_at', 'participants')
+        fields = ('id', 'conversation', 'sender', 'message', 'created_at', 'members')
 
-    def get_participants(self, obj):
+    def get_members(self, obj):
         return UserListSerializer(obj.conversation.members.all(), many=True).data
 
 
