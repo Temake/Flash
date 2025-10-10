@@ -23,9 +23,9 @@ class ConversationListCreateView(generics.ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         members_data = request.data.get('members', [])
 
-        if len(members_data) != 2:
+        if len(members_data) < 2:
             return Response(
-                {'error': 'A conversation needs exactly two members'},
+                {'error': 'A conversation needs at least two members'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -37,30 +37,46 @@ class ConversationListCreateView(generics.ListCreateAPIView):
         Profile = apps.get_model('accounts', 'Profile')
         
         users = Profile.objects.filter(id__in=members_data)
-        if users.count() != 2:
+        if users.count() != len(members_data):
             return Response(
-                {'error': 'A conversation needs exactly two members'},
+                {'error': 'Some specified members were not found'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        existing_conversation = Conversation.objects.filter(
-            members__id=members_data[0]
-        ).filter(
-            members__id=members_data[1]
-        ).distinct()
+        if len(members_data) > 2:
+            # More complex logic needed for group chat uniqueness
+            existing_conversation = None
+            for conv in Conversation.objects.all():
+                conv_member_ids = set(conv.members.values_list('id', flat=True))
+                if conv_member_ids == set(members_data):
+                    existing_conversation = conv
+                    break
+        else:
+            # Keep existing logic for 2-person chats
+            existing_conversation = Conversation.objects.filter(
+                members__id=members_data[0]
+            ).filter(
+                members__id=members_data[1]
+            ).distinct().first()
 
-        if existing_conversation.exists():
+        if existing_conversation:
             return Response(
                 {'error': 'A conversation already exists between these members'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        conversation = Conversation.objects.create()
+        
+     
+        conversation_name = request.data.get('name', '')
+        if len(members_data) > 2 and not conversation_name:
+            user_names = [user.user.first_name for user in users[:3]]
+            conversation_name = f"Group with {', '.join(user_names)}"
+            if len(users) > 3:
+                conversation_name += f" and {len(users) - 3} others"
+        conversation = Conversation.objects.create(name=conversation_name)
         conversation.members.set(users)
-
 
         serializer = self.get_serializer(conversation)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-
 class MessageListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 

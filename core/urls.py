@@ -22,15 +22,18 @@ from rest_framework_simplejwt.views import (
 )
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
-
+from chats.routers import websocket_urlpatterns
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-    path('api/',include("accounts.urls")),
+    path('api/auth/',include("accounts.urls")),
     path('api/conversations/',include("chats.urls")),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
+
+
+urlpatterns += websocket_urlpatterns

@@ -43,7 +43,7 @@ class Chat(models.Model):
     conversation= models.ForeignKey(Conversation, on_delete=models.CASCADE,blank=True,null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     sender= models.ForeignKey('accounts.Profile',on_delete=models.SET_NULL,related_name='chats',null=True)
-    reciever= models.ForeignKey('accounts.Profile',on_delete=models.CASCADE, related_name="group_chat")
+    # reciever= models.ForeignKey('accounts.Profile',on_delete=models.CASCADE, related_name="group_chat")
     
     def __str__(self):
         return f"{self.message[:50]} by {self.sender.username}"

@@ -1,16 +1,21 @@
 from rest_framework import serializers
 from .models import *
 
-
 class ConversationSerializers(serializers.ModelSerializer):
     members= serializers.HyperlinkedRelatedField(many = True,read_only=True,view_name="profile-detail")
-    
+    member_count= serializers.SerializerMethodField()
+    is_group= serializers.SerializerMethodField()
     class Meta:
         model= Conversation
-        fields = ("id","name","members","created_at")
-    
+        fields = ("id","name","members","created_at","member_count","is_group")
+
+    def get_member_count(self, obj):
+        return obj.members.count()
+
     def to_representation(self, instance):
         return super().to_representation(instance)
+    def get_is_group(self, obj):
+        return obj.members.count() > 2
 
 class MessageSerializers(serializers.ModelSerializer):
     sender=serializers.HyperlinkedRelatedField(many=True,read_only=True,view_name='accountuser-detail')
