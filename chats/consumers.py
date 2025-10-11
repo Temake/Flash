@@ -1,38 +1,60 @@
-import json
-from .models import  Chat as Message
+from asgiref.sync import sync_to_async
+import json 
+import jwt 
 from channels.generic.websocket import AsyncWebsocketConsumer
-from urllib.parse import parse_qs
-from django.contrib.auth import get_user_model
 
-User = get_user_model()
+from django.conf import settings
+from urllib.parse import parse_qs
+
+
 class ChatConsumer(AsyncWebsocketConsumer):
+
     async def connect(self):
-        query_string=self.scope['query_string'].decode('utf-8')
-        self.query_params = parse_qs(query_string)
-        self.user = self.query_params.get('username', ['Anonymous'])[0]
-        self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
-        self.room_group_name = f"chat_{self.room_name}"
-        self.scope['user']=self.user
-        
-        
+        query_string = self.scope['query_string'].decode('utf-8')
+        params = parse_qs(query_string)
+        token = params.get('token', [None])[0] # token retrieved
+
+        if token:
+            try:
+                decoded_data = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+                self.user = await self.get_user(decoded_data['user_id']) #get the user from the token
+                self.scope['user'] = self.user
+            except jwt.ExpiredSignatureError:
+                await self.close(code=4000) #close the connection if token is expired
+                return
+            except jwt.InvalidTokenError:
+                await self.close(code=4001) #close the connection if token is invalid
+                return
+        else:
+            await self.close(code=4002) #close the connection if no token is provided
+            return
+
+        self.conversation_id = self.scope['url_route']['kwargs']['conversation_id']
+        self.room_group_name = f'chat_{self.conversation_id}'
+
+
+        # Add channel to the  group
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
+
+        # accept websocket connections
         await self.accept()
-        
-        user_data= await self.get_user_data(self.user)
+
+        user_data = await self.get_user_data(self.user)
         await self.channel_layer.group_send(
             self.room_group_name,
             {
-                "type": "Online Status",
-                "online_users": [user_data],
-                'status': 'online'
+                'type': 'online_status',
+                'online_users': [user_data],
+                'status': 'online',
             }
         )
+
     async def disconnect(self, close_code):
         if hasattr(self, 'room_group_name'):
-           
+            # notify others about the disconnect
             user_data = await self.get_user_data(self.scope["user"])
             await self.channel_layer.group_send(
                 self.room_group_name,
@@ -43,24 +65,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             )
 
+            # Remove channel from the group
             await self.channel_layer.group_discard(
                 self.room_group_name,
                 self.channel_name
             )
-    async def receive(self, text_data):
-        message = json.loads(text_data).get('message')
-        print(message)
-        user = await self.get_user(self.user)
-        await self.save_message(user, self.room_name, message)
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                "type": "chat_message",
-                "message": message,
-                "username": self.user,
-            }
-        )
-        
+
     async def receive(self, text_data):
         text_data_json = json.loads(text_data)
         event_type = text_data_json.get('type')
@@ -76,9 +86,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 from .serializers import UserListSerializer
                 user_data = UserListSerializer(user).data
 
-             
+                #say message to the group/database
                 message = await self.save_message(conversation, user, message_content)
-                
+                #broadcast the message to the group
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
@@ -121,13 +131,58 @@ class ChatConsumer(AsyncWebsocketConsumer):
             except Exception as e:
                 print(f"Error getting user data: {e}")
 
+    # helper functions
+    async def chat_message(self, event):
+        message = event['message']
+        user = event['user']
+        timestamp = event['timestamp']
+        await self.send(text_data=json.dumps({
+            'type': 'chat_message',
+            'message': message,
+            'user': user,
+            'timestamp': timestamp,
+        }))
     
-    
-    @staticmethod
-    async def get_user(username):
-        return await User.objects.aget(username=username)
+    async def typing(self, event):
+        user = event['user']
+        receiver = event.get('receiver')
+        is_typing = event.get('is_typing', False)
+        await self.send(text_data=json.dumps({
+            'type': 'typing',
+            'user': user,
+            'receiver': receiver,
+            'is_typing': is_typing,
+        }))
 
-    @staticmethod
-    async def save_message(sender, receiver, message):
-        await Message.objects.acreate(sender=sender, receiver=receiver, content=message)
+    async def online_status(self, event):
+        await self.send(text_data=json.dumps(event))
     
+    
+    @sync_to_async
+    def get_user(self, user_id):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        return User.objects.get(id=user_id)
+
+    @sync_to_async
+    def get_user_data(self, user):
+        from .serializers import UserListSerializer
+        return UserListSerializer(user).data
+
+    @sync_to_async
+    def get_conversation(self, conversation_id):
+        from .models import Conversation
+        try:
+            return Conversation.objects.get(id=conversation_id)
+        except Conversation.DoesNotExist:
+            print(F"Conversation with id {conversation_id} does not exist")
+            return None
+
+    @sync_to_async
+    def save_message(self, conversation, user, content):
+        from .models import Message
+        return Message.objects.create(
+            conversation=conversation,
+            sender=user,
+            content=content
+        )

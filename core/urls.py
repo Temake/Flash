@@ -22,7 +22,7 @@ from rest_framework_simplejwt.views import (
 )
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
-from chats.routers import websocket_urlpatterns
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -36,4 +36,3 @@ urlpatterns = [
 ]
 
 
-urlpatterns += websocket_urlpatterns

@@ -44,7 +44,6 @@ class ConversationListCreateView(generics.ListCreateAPIView):
             )
 
         if len(members_data) > 2:
-            # More complex logic needed for group chat uniqueness
             existing_conversation = None
             for conv in Conversation.objects.all():
                 conv_member_ids = set(conv.members.values_list('id', flat=True))
@@ -52,7 +51,7 @@ class ConversationListCreateView(generics.ListCreateAPIView):
                     existing_conversation = conv
                     break
         else:
-            # Keep existing logic for 2-person chats
+            
             existing_conversation = Conversation.objects.filter(
                 members__id=members_data[0]
             ).filter(

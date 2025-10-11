@@ -13,5 +13,5 @@ application = get_asgi_application()
 
 routers =[
     {"http": get_asgi_application(),
-     "websocket": ProtocolTypeRouter(URLRouter(websocet_url_patterns))}
+     "websocket": ProtocolTypeRouter(URLRouter(websocket_urlpatterns))}
 ]

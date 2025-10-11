@@ -1,8 +1,9 @@
 from rest_framework import serializers
 from .models import *
+from accounts.models import AccountUser
 
 class ConversationSerializers(serializers.ModelSerializer):
-    members= serializers.HyperlinkedRelatedField(many = True,read_only=True,view_name="profile-detail")
+    members= serializers.StringRelatedField(many = True,read_only=True)
     member_count= serializers.SerializerMethodField()
     is_group= serializers.SerializerMethodField()
     class Meta:
@@ -18,7 +19,7 @@ class ConversationSerializers(serializers.ModelSerializer):
         return obj.members.count() > 2
 
 class MessageSerializers(serializers.ModelSerializer):
-    sender=serializers.HyperlinkedRelatedField(many=True,read_only=True,view_name='accountuser-detail')
+    sender=serializers.HyperlinkedRelatedField(many=False,read_only=True,view_name='accountuser-detail')
     
     class Meta:
         model= Chat
@@ -30,7 +31,7 @@ class MessageSerializers(serializers.ModelSerializer):
         return super().to_representation(instance)
 class UserListSerializer(serializers.ModelSerializer):
     class Meta:
-        model = 'accounts.AccountUser'
+        model = AccountUser
         fields = ('id', 'username')
 
 
@@ -39,15 +40,20 @@ class UserListSerializer(serializers.ModelSerializer):
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserListSerializer()
     members = serializers.SerializerMethodField()
+    is_group_message = serializers.SerializerMethodField()
     class Meta:
         model = Chat
-        fields = ('id', 'conversation', 'sender', 'message', 'created_at', 'members')
+        fields = ('id', 'conversation', 'sender', 'message', 'created_at', 'members','is_group_message')
 
     def get_members(self, obj):
         return UserListSerializer(obj.conversation.members.all(), many=True).data
 
+    def get_is_group_message(self, obj):
+        return obj.conversation.members.count() > 2
 
 class CreateMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chat
-        fields = ('conversation', 'content')
+        fields = ('conversation', 'message')
+    def create(self, validated_data):
+        return Chat.objects.create(**validated_data)
