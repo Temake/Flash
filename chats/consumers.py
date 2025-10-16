@@ -17,10 +17,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if token:
             try:
                 decoded_data = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
-                self.user = await self.get_user(decoded_data['user_id']) #get the user from the token
+                self.user = await self.get_user(decoded_data['user_id']) 
                 self.scope['user'] = self.user
             except jwt.ExpiredSignatureError:
-                await self.close(code=4000) #close the connection if token is expired
+                await self.close(code=4000) 
                 return
             except jwt.InvalidTokenError:
                 await self.close(code=4001) #close the connection if token is invalid
@@ -33,13 +33,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.room_group_name = f'chat_{self.conversation_id}'
 
 
-        # Add channel to the  group
+        
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
 
-        # accept websocket connections
         await self.accept()
 
         user_data = await self.get_user_data(self.user)
@@ -54,7 +53,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         if hasattr(self, 'room_group_name'):
-            # notify others about the disconnect
+           
             user_data = await self.get_user_data(self.scope["user"])
             await self.channel_layer.group_send(
                 self.room_group_name,
@@ -65,7 +64,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             )
 
-            # Remove channel from the group
+            
             await self.channel_layer.group_discard(
                 self.room_group_name,
                 self.channel_name
@@ -135,7 +134,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def chat_message(self, event):
         message = event['message']
         user = event['user']
-        timestamp = event['timestamp']
+        timestamp = event['created_at'] if 'created_at' in event else event.get('timestamp')
         await self.send(text_data=json.dumps({
             'type': 'chat_message',
             'message': message,

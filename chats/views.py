@@ -91,7 +91,6 @@ class MessageListCreateView(generics.ListCreateAPIView):
         return MessageSerializer
 
     def perform_create(self, serializer):
-        #fetch conversation and validate user participation
         print("Incoming conversation", self.request.data)
         conversation_id = self.kwargs['conversation_id']
         conversation = self.get_conversation(conversation_id)
@@ -99,8 +98,6 @@ class MessageListCreateView(generics.ListCreateAPIView):
         serializer.save(sender=self.request.user.profile, conversation=conversation)
 
     def get_conversation(self, conversation_id):
-        #check if user is a participant of the conversation, it helps to fetch the conversation and 
-        #validate the participants
         conversation = get_object_or_404(Conversation, id=conversation_id)
         if self.request.user.profile not in conversation.members.all():
             raise PermissionDenied('You are not a participant of this conversation')
