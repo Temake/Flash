@@ -39,6 +39,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
 
+        
         await self.accept()
 
         user_data = await self.get_user_data(self.user)
@@ -75,26 +76,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
         event_type = text_data_json.get('type')
 
         if event_type == 'chat_message':
-            message_content = text_data_json.get('message')
-            user_id = text_data_json.get('user')
+            message = text_data_json.get('message')
+            
 
             try:
-                user = await self.get_user(user_id)
-                
+                user = self.scope['user']
+                profile = await self.get_profile(user)
                 conversation = await self.get_conversation(self.conversation_id)
                 from .serializers import UserListSerializer
                 user_data = UserListSerializer(user).data
 
                 #say message to the group/database
-                message = await self.save_message(conversation, user, message_content)
+                message = await self.save_message(conversation, profile, message)
                 #broadcast the message to the group
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
                         'type': 'chat_message',
-                        'message': message.content,
+                        'message': message.message,
                         'user': user_data,
-                        'timestamp': message.timestamp.isoformat(),
+                        'timestamp': message.created_at.isoformat(),
                     }
                 )
             except Exception as e:
@@ -160,9 +161,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @sync_to_async
     def get_user(self, user_id):
         from django.contrib.auth import get_user_model
+        from django.apps import apps
         User = get_user_model()
+        Profile = apps.get_model('accounts', 'Profile')
+        
         return User.objects.get(id=user_id)
-
+    @sync_to_async
+    def get_profile(self, user):
+        from django.apps import apps
+        Profile = apps.get_model('accounts', 'Profile')
+        return Profile.objects.get(user=user)
     @sync_to_async
     def get_user_data(self, user):
         from .serializers import UserListSerializer
@@ -178,10 +186,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return None
 
     @sync_to_async
-    def save_message(self, conversation, user, content):
-        from .models import Message
-        return Message.objects.create(
+    def save_message(self, conversation, profile, message):
+        from .models import Chat
+        return Chat.objects.create(
             conversation=conversation,
-            sender=user,
-            content=content
+            sender=profile,
+            message=message
         )
