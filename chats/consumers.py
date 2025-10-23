@@ -130,6 +130,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 print(f"Error parsing receiver ID: {e}")
             except Exception as e:
                 print(f"Error getting user data: {e}")
+       
+            
 
     # helper functions
     async def chat_message(self, event):
