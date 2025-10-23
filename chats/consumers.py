@@ -130,6 +130,109 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 print(f"Error parsing receiver ID: {e}")
             except Exception as e:
                 print(f"Error getting user data: {e}")
+
+        elif event_type == 'call_signal':
+            await self.handle_call_signal(text_data_json)
+            
+        elif event_type == 'webrtc_signal':
+            await self.handle_webrtc_signal(text_data_json)
+
+    async def handle_call_signal(self, data):
+        signal_type = data.get('signal')
+        call_id = data.get('call_id')
+        
+        user_data = await self.get_user_data(self.scope['user'])
+        
+        if signal_type == 'initiate':
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'call_signal',
+                    'signal': 'incoming_call',
+                    'call_id': call_id,
+                    'caller': user_data,
+                    'call_type': data.get('call_type'),
+                }
+            )
+        
+        elif signal_type == 'accept':
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'call_signal',
+                    'signal': 'call_accepted',
+                    'call_id': call_id,
+                    'accepter': user_data,
+                }
+            )
+        
+        elif signal_type == 'reject':
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'call_signal',
+                    'signal': 'call_rejected',
+                    'call_id': call_id,
+                    'rejecter': user_data,
+                }
+            )
+        
+        elif signal_type == 'end':
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'call_signal',
+                    'signal': 'call_ended',
+                    'call_id': call_id,
+                    'ender': user_data,
+                }
+            )
+
+    async def handle_webrtc_signal(self, data):
+        signal_type = data.get('signal')
+        call_id = data.get('call_id')
+        target_user = data.get('target_user')
+        
+        user_data = await self.get_user_data(self.scope['user'])
+        
+        if signal_type == 'offer':
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'webrtc_signal',
+                    'signal': 'offer',
+                    'call_id': call_id,
+                    'sender': user_data,
+                    'target_user': target_user,
+                    'offer': data.get('offer'),
+                }
+            )
+        
+        elif signal_type == 'answer':
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'webrtc_signal',
+                    'signal': 'answer',
+                    'call_id': call_id,
+                    'sender': user_data,
+                    'target_user': target_user,
+                    'answer': data.get('answer'),
+                }
+            )
+        
+        elif signal_type == 'ice_candidate':
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'webrtc_signal',
+                    'signal': 'ice_candidate',
+                    'call_id': call_id,
+                    'sender': user_data,
+                    'target_user': target_user,
+                    'candidate': data.get('candidate'),
+                }
+            )
        
             
 
@@ -158,6 +261,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def online_status(self, event):
         await self.send(text_data=json.dumps(event))
+
+    async def call_signal(self, event):
+        await self.send(text_data=json.dumps(event))
+
+    async def webrtc_signal(self, event):
+        target_user = event.get('target_user')
+        sender_id = event.get('sender', {}).get('id')
+        
+        if target_user == self.scope['user'].id or sender_id == self.scope['user'].id:
+            await self.send(text_data=json.dumps(event))
     
     
     @sync_to_async
