@@ -1,13 +1,14 @@
 from django.shortcuts import render
 from django.apps import apps
-from .serializers import ConversationSerializers, MessageSerializer, CreateMessageSerializer
-from .models import Conversation, Chat as Message
+from .serializers import ConversationSerializers, MessageSerializer, CreateMessageSerializer, CallSerializer, CallCreateSerializer, CallUpdateSerializer
+from .models import Call, Conversation, Chat as Message
 from django.contrib.auth import get_user_model
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.decorators import action
 
 
 class ConversationListCreateView(generics.ListCreateAPIView):
@@ -116,3 +117,98 @@ class MessageRetrieveDestroyView(generics.RetrieveDestroyAPIView):
             raise PermissionDenied('You are not the sender of this message')
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CallListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        from django.db import models
+        return Call.objects.filter(
+            models.Q(caller=self.request.user.profile) |
+            models.Q(participants=self.request.user.profile)
+        ).distinct().order_by('-started_at')
+    
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return CallCreateSerializer
+        return CallSerializer
+    
+    def perform_create(self, serializer):
+        conversation = serializer.validated_data['conversation']
+        
+        if self.request.user.profile not in conversation.members.all():
+            raise PermissionDenied('You are not a member of this conversation')
+        
+        serializer.save(caller=self.request.user.profile)
+
+
+class CallRetrieveUpdateView(generics.RetrieveUpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        from django.db import models
+        return Call.objects.filter(
+            models.Q(caller=self.request.user.profile) |
+            models.Q(participants=self.request.user.profile)
+        ).distinct()
+    
+    def get_serializer_class(self):
+        if self.request.method in ['PATCH', 'PUT']:
+            return CallUpdateSerializer
+        return CallSerializer
+    
+    def perform_update(self, serializer):
+        call = self.get_object()
+        
+        if call.status in ['ended', 'cancelled', 'rejected']:
+            raise PermissionDenied('Cannot update a finished call')
+        
+        serializer.save()
+
+
+class CallActionView(generics.UpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = CallUpdateSerializer
+    
+    def get_queryset(self):
+        from django.db import models
+        return Call.objects.filter(
+            models.Q(caller=self.request.user.profile) |
+            models.Q(participants=self.request.user.profile)
+        ).distinct()
+    
+    def update(self, request, *args, **kwargs):
+        call = self.get_object()
+        action = kwargs.get('action')
+        
+        if action == 'accept':
+            if call.status != 'ringing':
+                return Response({'error': 'Call is not ringing'}, status=status.HTTP_400_BAD_REQUEST)
+            call.status = 'accepted'
+        
+        elif action == 'reject':
+            if call.status not in ['initiated', 'ringing']:
+                return Response({'error': 'Cannot reject this call'}, status=status.HTTP_400_BAD_REQUEST)
+            call.status = 'rejected'
+        
+        elif action == 'end':
+            if call.status not in ['accepted', 'ringing']:
+                return Response({'error': 'Cannot end this call'}, status=status.HTTP_400_BAD_REQUEST)
+            call.status = 'ended'
+        
+        elif action == 'cancel':
+            if call.caller != request.user.profile:
+                return Response({'error': 'Only caller can cancel'}, status=status.HTTP_403_FORBIDDEN)
+            if call.status not in ['initiated', 'ringing']:
+                return Response({'error': 'Cannot cancel this call'}, status=status.HTTP_400_BAD_REQUEST)
+            call.status = 'cancelled'
+        
+        else:
+            return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = CallUpdateSerializer(call, data={'status': call.status}, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        
+        return Response(CallSerializer(call).data)
