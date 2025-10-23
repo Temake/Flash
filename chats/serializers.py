@@ -57,3 +57,66 @@ class CreateMessageSerializer(serializers.ModelSerializer):
         fields = ('conversation', 'message')
     def create(self, validated_data):
         return Chat.objects.create(**validated_data)
+
+
+class CallSerializer(serializers.ModelSerializer):
+    caller = UserListSerializer(read_only=True)
+    participants = UserListSerializer(many=True, read_only=True)
+    conversation = ConversationSerializers(read_only=True)
+    duration_seconds = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Call
+        fields = ('id', 'call_type', 'status', 'conversation', 'caller', 'participants', 
+                 'started_at', 'answered_at', 'ended_at', 'duration', 'duration_seconds')
+        read_only_fields = ('started_at', 'answered_at', 'ended_at', 'duration')
+    
+    def get_duration_seconds(self, obj):
+        if obj.duration:
+            return obj.duration.total_seconds()
+        return None
+
+
+class CallCreateSerializer(serializers.ModelSerializer):
+    participants = serializers.ListField(child=serializers.IntegerField(), write_only=True)
+    
+    class Meta:
+        model = Call
+        fields = ('call_type', 'conversation', 'participants')
+    
+    def validate_participants(self, value):
+        if len(value) < 1:
+            raise serializers.ValidationError("At least one participant is required")
+        return value
+    
+    def create(self, validated_data):
+        participants_data = validated_data.pop('participants')
+        call = Call.objects.create(**validated_data)
+        
+        from accounts.models import Profile
+        participants = Profile.objects.filter(id__in=participants_data)
+        call.participants.set(participants)
+        
+        return call
+
+
+class CallUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Call
+        fields = ('status', 'answered_at', 'ended_at', 'duration')
+        
+    def update(self, instance, validated_data):
+        status = validated_data.get('status')
+        
+        if status == 'accepted' and not instance.answered_at:
+            from django.utils import timezone
+            validated_data['answered_at'] = timezone.now()
+        
+        if status in ['ended', 'rejected', 'cancelled'] and not instance.ended_at:
+            from django.utils import timezone
+            validated_data['ended_at'] = timezone.now()
+            
+            if instance.answered_at and status == 'ended':
+                validated_data['duration'] = validated_data['ended_at'] - instance.answered_at
+        
+        return super().update(instance, validated_data)
